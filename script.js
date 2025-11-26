@@ -42,16 +42,32 @@ document.addEventListener('DOMContentLoaded', function() {
     const faqContainer = document.getElementById('faqContainer');
     const faqSearch = document.getElementById('faqSearch');
     const faqSection = document.getElementById('faqSection');
+    const loadMoreBtn = document.getElementById('loadMoreFaq');
 
-    function renderFAQ(questions = faqData) {
+    let visibleFaqCount = 4;
+
+    function updateLoadMoreVisibility(total, isSearchMode) {
+        if (!loadMoreBtn) return;
+
+        if (isSearchMode || total <= visibleFaqCount) {
+            loadMoreBtn.style.display = 'none';
+        } else {
+            loadMoreBtn.style.display = 'inline-flex';
+        }
+    }
+
+    function renderFAQ(questions = faqData, { isSearchMode = false } = {}) {
         faqContainer.innerHTML = '';
         
         if (questions.length === 0) {
             faqContainer.innerHTML = '<p class="text-center text-gray-400">Nenhum resultado encontrado para sua pesquisa.</p>';
+            updateLoadMoreVisibility(0, true);
             return;
         }
 
-        questions.forEach((item, index) => {
+        const listToRender = isSearchMode ? questions : questions.slice(0, visibleFaqCount);
+
+        listToRender.forEach((item, index) => {
             const faqItem = document.createElement('div');
             faqItem.className = 'faq-item';
             
@@ -73,11 +89,22 @@ document.addEventListener('DOMContentLoaded', function() {
             faqContainer.appendChild(faqItem);
         });
         
+        updateLoadMoreVisibility(questions.length, isSearchMode);
         feather.replace();
     }
 
-    // Initial FAQ render
-    renderFAQ();
+    // Initial FAQ render (limited view)
+    renderFAQ(faqData, { isSearchMode: false });
+
+    if (loadMoreBtn) {
+        loadMoreBtn.addEventListener('click', function() {
+            visibleFaqCount += 3;
+            if (visibleFaqCount > faqData.length) {
+                visibleFaqCount = faqData.length;
+            }
+            renderFAQ(faqData, { isSearchMode: false });
+        });
+    }
 
     // FAQ Search functionality
     faqSearch.addEventListener('input', function() {
@@ -102,15 +129,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     };
                 });
                 
-                renderFAQ(highlightedFAQs);
+                renderFAQ(highlightedFAQs, { isSearchMode: true });
             } else {
-                renderFAQ([]);
+                renderFAQ([], { isSearchMode: true });
             }
         } else {
             // Reset FAQ section position
             faqSection.classList.add('pt-8');
             faqSection.classList.remove('pt-0');
-            renderFAQ();
+            visibleFaqCount = 4;
+            renderFAQ(faqData, { isSearchMode: false });
         }
     });
 
@@ -122,4 +150,77 @@ document.addEventListener('DOMContentLoaded', function() {
             mobileMenu.classList.toggle('open');
         });
     }
+
+    // Smooth scroll from hero button
+    const scrollDownBtn = document.getElementById('scrollDownBtn');
+    const toolsSection = document.getElementById('toolsSection');
+
+    if (scrollDownBtn && toolsSection) {
+        scrollDownBtn.addEventListener('click', function() {
+            toolsSection.scrollIntoView({ behavior: 'smooth' });
+        });
+    }
+
+    // Scroll reveal para elementos com a classe .reveal
+    const revealElements = document.querySelectorAll('.reveal');
+
+    if (IntersectionObserver && revealElements.length > 0) {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('reveal-visible');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            },
+            {
+                threshold: 0.15,
+                rootMargin: '0px 0px -40px 0px',
+            }
+        );
+
+        revealElements.forEach((el) => observer.observe(el));
+    } else {
+        // Fallback: mostra tudo sem animação se IntersectionObserver não estiver disponível
+        revealElements.forEach((el) => el.classList.add('reveal-visible'));
+    }
+
+    // Efeito de header ao rolar
+    const mainHeader = document.getElementById('mainHeader');
+    if (mainHeader) {
+        const toggleHeaderShadow = () => {
+            if (window.scrollY > 10) {
+                mainHeader.classList.add('header-scrolled');
+            } else {
+                mainHeader.classList.remove('header-scrolled');
+            }
+        };
+
+        toggleHeaderShadow();
+        window.addEventListener('scroll', toggleHeaderShadow);
+    }
+
+    // Efeito de parallax/tilt leve nos cards de ferramenta
+    const toolCards = document.querySelectorAll('.tool-card');
+
+    toolCards.forEach((card) => {
+        const inner = card.querySelector('.tool-card-inner') || card.querySelector('div');
+        if (!inner) return;
+
+        card.addEventListener('mousemove', (e) => {
+            const rect = card.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            const rotateY = ((x / rect.width) - 0.5) * 10; // -5 a 5 graus
+            const rotateX = ((y / rect.height) - 0.5) * -8; // -4 a 4 graus
+
+            inner.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-6px)`;
+        });
+
+        card.addEventListener('mouseleave', () => {
+            inner.style.transform = '';
+        });
+    });
 });
